@@ -9,6 +9,9 @@
 #include <Adafruit_GFX.h>   // Core graphics library
 #include <RGBmatrixPanel.h> // Hardware-specific library
 
+bool cmdAvailable(void);
+void readCmd(void);
+
 // If your 32x32 matrix has the SINGLE HEADER input,
 // use this pinout:
 #define CLK 11  // MUST be on PORTB! (Use pin 11 on Mega)
@@ -64,5 +67,18 @@ void setup() {
 }
 
 void loop() {
-  // do nothing
+  if (cmdAvailable()) {
+    readCmd();
+  }
 }
+
+// check if a command on the chosen interface (SPI/UART) is available
+bool cmdAvailable(void) {
+  return false;
+}
+
+// read the command and write appropriate data to globals
+void readCmd(void) {
+  
+}
+
