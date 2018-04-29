@@ -6,8 +6,9 @@
 // for Adafruit Industries.
 // BSD license, all text above must be included in any redistribution.
 
-#include <Adafruit_GFX.h>   // Core graphics library
-#include <RGBmatrixPanel.h> // Hardware-specific library
+#include "Adafruit_GFX.h"   // Core graphics library
+#include "RGBmatrixPanel.h" // Hardware-specific library
+
 
 bool cmdAvailable(void);
 void readCmd(void);
@@ -32,6 +33,18 @@ void readCmd(void);
 RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false);
 
 void setup() {
+
+// Open serial communications and wait for port to open:
+
+  Serial.begin(57600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+
+
+  Serial.println("Goodnight moon!");
+
+  
   int      x, y, hue;
   float    dx, dy, d;
   uint8_t  sat, val;
@@ -67,18 +80,44 @@ void setup() {
 }
 
 void loop() {
-  if (cmdAvailable()) {
-    readCmd();
-  }
+    if (cmdAvailable()) {
+      readCmd();
+    }
 }
 
 // check if a command on the chosen interface (SPI/UART) is available
 bool cmdAvailable(void) {
+  while(Serial.available() > 0) {
+    if (Serial.read() == 's') {
+      return true;
+    }
+  }
   return false;
 }
 
 // read the command and write appropriate data to globals
 void readCmd(void) {
-  // michael's first edit
+  char incomingByte;
+  char command[64];
+  memset(command, 0, 64);
+  while (Serial.available() == 0);
+  incomingByte = Serial.read();
+  switch (incomingByte) {
+    case '1':
+      Serial.print("Option1\n");
+      Serial.readBytes(command, 2);
+      Serial.println(command);
+      matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
+      break;
+    case '2':
+      Serial.print("Option2\n");
+      Serial.readBytes(command, 3);
+      Serial.println(command);
+      matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 3));
+      break;
+    default:
+      Serial.print("Not an option\n");   
+  }    
 }
+ 
 
