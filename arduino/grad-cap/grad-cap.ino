@@ -79,6 +79,6 @@ bool cmdAvailable(void) {
 
 // read the command and write appropriate data to globals
 void readCmd(void) {
-  
+  // michael's first edit
 }
 
