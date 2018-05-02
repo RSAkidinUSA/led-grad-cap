@@ -9,6 +9,8 @@
 #include "Adafruit_GFX.h"   // Core graphics library
 #include "RGBmatrixPanel.h" // Hardware-specific library
 
+// Similar to F(), but for PROGMEM string pointers rather than literals
+#define F2(progmem_ptr) (const __FlashStringHelper *)progmem_ptr
 
 bool cmdAvailable(void);
 void readCmd(void);
@@ -22,16 +24,28 @@ void readCmd(void);
 #define B   A1
 #define C   A2
 #define D   A3
-// If your matrix has the DOUBLE HEADER input, use:
-//#define CLK 8  // MUST be on PORTB! (Use pin 11 on Mega)
-//#define LAT 9
-//#define OE  10
-//#define A   A3
-//#define B   A2
-//#define C   A1
-//#define D   A0
-RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false);
 
+enum {WAIT, TEXT_DISPLAY} LED_STATE;
+
+RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, true);
+
+char str[256] = "LET'S GO HOKIES!";
+
+int    textX   = matrix.width(),
+       textMin = strlen(str) * -15,
+       hue     = 0;
+
+int8_t ball[3][4] = {
+  {  3,  0,  1,  1 }, // Initial X,Y pos & velocity for 3 bouncy balls
+  { 17, 15,  1, -1 },
+  { 27,  4, -1,  1 }
+};
+
+static const uint16_t PROGMEM ballcolor[3] = {
+  0x0080, // Green=1
+  0x0002, // Blue=1
+  0x1000  // Red=1
+};
 void setup() {
 
 // Open serial communications and wait for port to open:
@@ -51,6 +65,10 @@ void setup() {
   uint16_t c;
 
   matrix.begin();
+  matrix.setTextWrap(false); // Allow text to run off right edge
+  matrix.setTextSize(2.5);
+
+  LED_STATE = WAIT;
 
   for(y=0; y < matrix.width(); y++) {
     dy = 15.5 - (float)y;
@@ -83,41 +101,104 @@ void loop() {
     if (cmdAvailable()) {
       readCmd();
     }
+    switch(LED_STATE) {
+    case WAIT:
+      break;
+    case TEXT_DISPLAY:
+      dispMessage();
+      break;
+    }
 }
 
 // check if a command on the chosen interface (SPI/UART) is available
 bool cmdAvailable(void) {
-  while(Serial.available() > 0) {
-    if (Serial.read() == 's') {
+  char tmp;
+  while (Serial.available() > 0) {
+    tmp = Serial.read();
+    if (tmp == 's') {
       return true;
     }
   }
   return false;
 }
 
+void dispMessage(void) {
+  byte i;
+
+  // Clear background
+  matrix.fillScreen(0);
+
+  // Bounce three balls around
+  for(i=0; i<3; i++) {
+    // Draw 'ball'
+      matrix.fillCircle(ball[i][0], ball[i][1], 5, pgm_read_word(&ballcolor[i]));
+    // Update X, Y position
+    ball[i][0] += ball[i][2];
+    ball[i][1] += ball[i][3];
+    // Bounce off edges
+    if((ball[i][0] == 0) || (ball[i][0] == (matrix.width() - 1)))
+      ball[i][2] *= -1;
+    if((ball[i][1] == 0) || (ball[i][1] == (matrix.height() - 1)))
+      ball[i][3] *= -1;
+  }
+
+  // Draw big scrolly text on top
+  matrix.setTextColor(matrix.ColorHSV(hue, 255, 255, true));
+  matrix.setCursor(textX, 8);
+  matrix.print(str);
+
+  // Move text left (w/wrap), increase hue
+  if((--textX) < textMin) textX = matrix.width();
+  hue += 7;
+  if(hue >= 1536) hue -= 1536;
+
+  // Update display
+  matrix.swapBuffers(false);
+}
+
 // read the command and write appropriate data to globals
 void readCmd(void) {
   char incomingByte;
   char command[64];
+  unsigned int numBytes;
   memset(command, 0, 64);
-  while (Serial.available() == 0);
-  incomingByte = Serial.read();
-  switch (incomingByte) {
-    case '1':
-      Serial.print("Option1\n");
-      Serial.readBytes(command, 2);
-      Serial.println(command);
-      matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
-      break;
-    case '2':
-      Serial.print("Option2\n");
-      Serial.readBytes(command, 3);
-      Serial.println(command);
-      matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 3));
-      break;
-    default:
-      Serial.print("Not an option\n");   
-  }    
+  memset(str, 0, 256);
+  if (Serial.available())
+  {
+    Serial.print("Bytes available: ");
+    Serial.println(Serial.available());
+    incomingByte = Serial.read();
+    Serial.println(incomingByte);
+    switch (incomingByte) {
+      case '1':
+        Serial.print("Option1\n");
+        Serial.readBytes(command, 2);
+        Serial.println(command);
+        LED_STATE = WAIT;
+        matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
+        break;
+      case '2':
+        Serial.print("Option2\n");
+        Serial.readBytes(command, 3);
+        Serial.println(command);
+        LED_STATE = WAIT;
+        matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 3));
+        break;
+      case 'T':
+        Serial.print("Text\n");
+        numBytes = Serial.available();
+        if (numBytes > 256) {
+          numBytes = 255;
+        }
+        Serial.readBytes(str,numBytes);
+        textMin = strlen(str) * -15;
+        LED_STATE = TEXT_DISPLAY;
+        break;
+      default:
+        Serial.print("Not an option: ");  
+        Serial.println(incomingByte);
+    }  
+  }  
 }
  
 
