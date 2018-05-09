@@ -8,7 +8,7 @@
 
 #include "Adafruit_GFX.h"   // Core graphics library
 #include "RGBmatrixPanel.h" // Hardware-specific library
-#include "vtcross.h"
+#include "logo.h"
 
 // Similar to F(), but for PROGMEM string pointers rather than literals
 #define F2(progmem_ptr) (const __FlashStringHelper *)progmem_ptr
@@ -87,7 +87,9 @@ void setup() {
 
 void loop() {
     bool reset;
-    if ((reset = cmdAvailable())) {
+    // set reset equal to cmdAvailable
+    reset = cmdAvailable();
+    if (reset) {
       readCmd();
     }
     switch(LED_STATE) {
@@ -121,7 +123,7 @@ void test(void) {
 /* display the image saved in the buffer */
 void dispImage() {
   matrix.fillScreen(0);
-  matrix.drawRGBBitmap(0, 0, gimp_image, matrix.width(), matrix.height());
+  matrix.drawRGBBitmap(0, 0, logo, matrix.width(), matrix.height());
 //  matrix.drawPixel(matrix.width(),matrix.height(),128);
   matrix.swapBuffers(false);
 }
@@ -172,11 +174,13 @@ bool cmdAvailable(void) {
   char tmp;
   while (Serial1.available() > 0) {
     tmp = Serial1.read();
-    Serial.print(tmp);
+    Serial.print ("cmd: ");
+    Serial.println(tmp);
     if (tmp == 's') {
       return true;
     }
   }
+  return false;
 }
 
 // read the command and write appropriate data to globals
@@ -189,6 +193,7 @@ void readCmd(void) {
   if (Serial1.available())
   {
     incomingByte = Serial1.read();
+    Serial.print("Incoming byte: ");
     Serial.println(incomingByte);
     switch (incomingByte) {
       case '1':
@@ -213,7 +218,7 @@ void readCmd(void) {
         }
         Serial1.readBytes(str,numBytes);
         textMin = strlen(str) * -15;
-        Serial.println(str);
+        Serial1.println(str);
         LED_STATE = TEXT_DISPLAY;
         break;
       case 'I':
