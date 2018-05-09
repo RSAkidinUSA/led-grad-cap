@@ -50,12 +50,16 @@ void setup() {
 
 // Open serial communications and wait for port to open:
 
+  
+  Serial1.begin(115200);
+  while (!Serial1) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial1.println("Hello Pi!");
   Serial.begin(57600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-
-
   Serial.println("Goodnight moon!");
 
   
@@ -113,8 +117,9 @@ void loop() {
 // check if a command on the chosen interface (SPI/UART) is available
 bool cmdAvailable(void) {
   char tmp;
-  while (Serial.available() > 0) {
-    tmp = Serial.read();
+  while (Serial1.available() > 0) {
+    tmp = Serial1.read();
+    Serial.print(tmp);
     if (tmp == 's') {
       return true;
     }
@@ -163,11 +168,11 @@ void readCmd(void) {
   unsigned int numBytes;
   memset(command, 0, 64);
   memset(str, 0, 256);
-  if (Serial.available())
+  if (Serial1.available())
   {
     Serial.print("Bytes available: ");
     Serial.println(Serial.available());
-    incomingByte = Serial.read();
+    incomingByte = Serial1.read();
     Serial.println(incomingByte);
     switch (incomingByte) {
       case '1':
@@ -185,12 +190,12 @@ void readCmd(void) {
         matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 3));
         break;
       case 'T':
-        Serial.print("Text\n");
-        numBytes = Serial.available();
+        Serial1.print("Text\n");
+        numBytes = Serial1.available();
         if (numBytes > 256) {
           numBytes = 255;
         }
-        Serial.readBytes(str,numBytes);
+        Serial1.readBytes(str,numBytes);
         textMin = strlen(str) * -15;
         LED_STATE = TEXT_DISPLAY;
         break;
