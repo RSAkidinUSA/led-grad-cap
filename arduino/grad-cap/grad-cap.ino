@@ -8,7 +8,7 @@
 
 #include "Adafruit_GFX.h"   // Core graphics library
 #include "RGBmatrixPanel.h" // Hardware-specific library
-#include "logo.h"
+#include "images.h"
 
 // Similar to F(), but for PROGMEM string pointers rather than literals
 #define F2(progmem_ptr) (const __FlashStringHelper *)progmem_ptr
@@ -16,7 +16,8 @@
 bool cmdAvailable(void);
 void readCmd(void);
 void dispMessage(bool reset);
-void dispImage(void);
+void dispImage(uint16_t buf);
+void dispPreset(void);
 
 /* Debug messages to save memory */
 const char debug_0[] PROGMEM = "Serial port open and ready for communication";
@@ -34,7 +35,7 @@ const char* const debug_msg[] PROGMEM = {debug_0, debug_1};
 #define C   A2
 #define D   A3
 
-enum {WAIT, TEXT_DISPLAY, IMAGE_DISPLAY, TEST} LED_STATE;
+enum {WAIT, TEXT_DISPLAY, IMAGE_DISPLAY, PRESET} LED_STATE;
 
 RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, true);
 
@@ -43,6 +44,8 @@ char str[256] = "LET'S GO HOKIES!";
 int    textX   = matrix.width(),
        textMin = strlen(str) * -15,
        hue     = 0;
+
+uint8_t presetNum;
 
 int8_t ball[3][4] = {
   {  3,  0,  1,  1 }, // Initial X,Y pos & velocity for 3 bouncy balls
@@ -82,7 +85,8 @@ void setup() {
   matrix.setTextWrap(false); // Allow text to run off right edge
   matrix.setTextSize(2.5);
 
-  LED_STATE = IMAGE_DISPLAY;
+  LED_STATE = PRESET;
+  presetNum = 0;
 }
 
 void loop() {
@@ -99,12 +103,11 @@ void loop() {
       dispMessage(reset);
       break;
     case IMAGE_DISPLAY:
-      dispImage();
+      dispImage(logo);
       LED_STATE = WAIT;
       break;
-    case TEST:
-      test();
-      LED_STATE = WAIT;
+    case PRESET:
+      dispPreset();
       break;
     }
 }
@@ -120,10 +123,20 @@ void test(void) {
   matrix.swapBuffers(false);
 }
 
+// display a preset
+void dispPreset() {
+  switch(presetNum) {
+    case 0:
+    default:
+      dispImage(logo);
+      break;
+  }
+}
+
 /* display the image saved in the buffer */
-void dispImage() {
+void dispImage(uint16_t *buf) {
   matrix.fillScreen(0);
-  matrix.drawRGBBitmap(0, 0, logo, matrix.width(), matrix.height());
+  matrix.drawRGBBitmap(0, 0, buf, matrix.width(), matrix.height());
 //  matrix.drawPixel(matrix.width(),matrix.height(),128);
   matrix.swapBuffers(false);
 }
@@ -196,10 +209,10 @@ void readCmd(void) {
     Serial.print("Incoming byte: ");
     Serial.println(incomingByte);
     switch (incomingByte) {
-      case '1':
-        Serial.print("Option1\n");
-        Serial.readBytes(command, 2);
-        Serial.println(command);
+      case 'P':
+        Serial.print("Preset\n");
+        presetNum = (uint8_t) Serial.read();
+        Serial.println(presetNum);
         LED_STATE = WAIT;
         matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
         break;
@@ -225,10 +238,6 @@ void readCmd(void) {
         Serial.print("Image: ");
         LED_STATE = IMAGE_DISPLAY;
         Serial.println("");
-        break;
-      case 'Q':
-        Serial.print("Test: ");
-        LED_STATE = TEST;
         break;
       default:
         Serial.print("Not an option: ");  
