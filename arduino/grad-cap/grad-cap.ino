@@ -21,6 +21,11 @@ void dispImage(uint16_t *buf);
 void dispImage(const uint16_t *buf);
 void dispPreset(bool);
 
+// Array of all images
+#define NUM_IMAGES 5
+const uint16_t* const image_array[NUM_IMAGES] = {oldlogo, america, ecelogo, oldlogowhite, vertlogo};
+int imageNum;
+
 /* Debug messages to save memory */
 const char debug_0[] PROGMEM = "Serial port open and ready for communication";
 const char debug_1[] PROGMEM = "";
@@ -93,7 +98,8 @@ void setup() {
   matrix.setTextSize(2.5);
 
   LED_STATE = PRESET;
-  presetNum = 6;
+  presetNum = 0;
+  imageNum = 0;
 }
 
 void loop() {
@@ -110,7 +116,7 @@ void loop() {
       dispMessage(reset);
       break;
     case IMAGE_DISPLAY:
-      dispImage(imagebuf);
+      dispImage(image_array[imageNum]);
       LED_STATE = WAIT;
       break;
     case PRESET:
@@ -249,7 +255,6 @@ bool dispMessage(const char *buf, int rval, int gval, int bval, bool reset) {
     textX = matrix.width();
   }
 
-  Serial.println(strlen_P(buf));
   // Clear background
   matrix.fillScreen(0);
 
@@ -354,6 +359,10 @@ void readCmd(void) {
         LED_STATE = TEXT_DISPLAY;
         break;
       case 'I':
+        imageNum = (uint8_t) Serial1.read();
+        if (imageNum >= NUM_IMAGES) {
+          imageNum = 0;
+        }
         LED_STATE = IMAGE_DISPLAY;
         break;
       default:
