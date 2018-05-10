@@ -114,7 +114,7 @@ void loop() {
       LED_STATE = WAIT;
       break;
     case PRESET:
-      dispPreset();
+      dispPreset(reset);
       break;
     }
 }
@@ -130,24 +130,33 @@ const char preset_1_str[] PROGMEM = "Start Jumping!";
 #define NUMSTRINGS 2
 const char* const preset_str[2] = {preset_0_str, preset_1_str};
 
-void presetImgAllStr(const uint16_t *imagebuf) {
+void presetImgAllStr(const uint16_t *imagebuf, bool reset) {
   static int count = 0, strCount = 0;
+  if (reset) {
+    count = 0;
+    strCount = 0;
+    dispMessage(preset_str[strCount], 255, 255, 255, reset);
+  }
   if (count < NUMCYCLES) {
     dispImage(imagebuf);
     count++;
-  } else if (dispMessage(preset_str[strCount], 255, 255, 255)) {
+  } else if (dispMessage(preset_str[strCount], 255, 255, 255, reset)) {
     strCount++;
     strCount %= NUMSTRINGS;
     count = 0;
   }
 }
 
-void presetImgStr(const uint16_t *imagebuf, const char *strbuf) {
+void presetImgStr(const uint16_t *imagebuf, const char *strbuf, bool reset) {
   static int count = 0;
+  if (reset) {
+    count = 0;
+    dispMessage(strbuf, 255, 255, 255, reset);
+  }
   if (count < NUMCYCLES) {
     dispImage(imagebuf);
     count++;
-  } else if (dispMessage(strbuf, 255, 255, 255)) {
+  } else if (dispMessage(strbuf, 255, 255, 255, reset)) {
     count = 0;
   }
 }
@@ -158,12 +167,12 @@ void presetImgStr(const uint16_t *imagebuf, const char *strbuf) {
 /////////////////////////////////DISPLAY FUNCTIONS////////////////////////////////////////////
 
 // display a preset
-void dispPreset() {
+void dispPreset(bool reset) {
   switch(presetNum) {
     case 0:
     default:
-//      presetImgStr(vertlogo, preset_str[1]);
-      presetImgAllStr(vertlogo);
+//      presetImgStr(vertlogo, preset_str[1], reset);
+      presetImgAllStr(vertlogo, reset);
       break;
   }
 }
@@ -183,11 +192,15 @@ void dispImage(const uint16_t *buf) {
 }
 
 /* display a preset message */
-bool dispMessage(const char *buf, int rval, int gval, int bval) {
+bool dispMessage(const char *buf, int rval, int gval, int bval, bool reset) {
   byte i;
   bool done = false;
   static int textX = matrix.width();
   int   textMin = strlen_P(buf) * -15;
+
+  if (reset) {
+    textX = matrix.width();
+  }
 
   Serial.println(strlen_P(buf));
   // Clear background
