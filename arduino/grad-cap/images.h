@@ -7,5 +7,6 @@
 #include "america.h"
 #include "oldlogowhite.h"
 #include "ecelogo.h"
+#include "southafrica.h"
 
 #endif  _IMAGES_H_

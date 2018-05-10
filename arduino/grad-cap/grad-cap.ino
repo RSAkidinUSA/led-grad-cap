@@ -16,10 +16,10 @@
 bool cmdAvailable(void);
 void readCmd(void);
 void dispMessage(bool reset);
-bool dispMessage(const char *buf);
+bool dispMessage(const char *buf, int rval, int gval, int bval, bool reset);
 void dispImage(uint16_t *buf);
 void dispImage(const uint16_t *buf);
-void dispPreset(void);
+void dispPreset(bool);
 
 /* Debug messages to save memory */
 const char debug_0[] PROGMEM = "Serial port open and ready for communication";
@@ -93,7 +93,7 @@ void setup() {
   matrix.setTextSize(2.5);
 
   LED_STATE = PRESET;
-  presetNum = 0;
+  presetNum = 6;
 }
 
 void loop() {
@@ -126,21 +126,27 @@ void loop() {
 /* Debug messages to save memory */
 const char preset_0_str[] PROGMEM = "Lets go Hokies!";
 const char preset_1_str[] PROGMEM = "Start Jumping!";
+const char ece_0_str[] PROGMEM = "Shout out to the ECE Dept!";
+const char ece_1_str[] PROGMEM = "Special thanks to the AMP Lab!";
+const char count_0_str[] PROGMEM = "3    2    1    WE DID IT!!!!";
+const char sa_0_string[] PROGMEM = "@RSAkidinUSA";
+
 
 #define NUMSTRINGS 2
 const char* const preset_str[2] = {preset_0_str, preset_1_str};
+const char* const ece_str[2] = {ece_0_str, ece_1_str};
 
-void presetImgAllStr(const uint16_t *imagebuf, bool reset) {
+void presetImgStrArr(const uint16_t *imagebuf, const char **arr, bool reset) {
   static int count = 0, strCount = 0;
   if (reset) {
     count = 0;
     strCount = 0;
-    dispMessage(preset_str[strCount], 255, 255, 255, reset);
+    dispMessage(arr[strCount], 255, 255, 255, reset);
   }
   if (count < NUMCYCLES) {
     dispImage(imagebuf);
     count++;
-  } else if (dispMessage(preset_str[strCount], 255, 255, 255, reset)) {
+  } else if (dispMessage(arr[strCount], 255, 255, 255, reset)) {
     strCount++;
     strCount %= NUMSTRINGS;
     count = 0;
@@ -161,6 +167,27 @@ void presetImgStr(const uint16_t *imagebuf, const char *strbuf, bool reset) {
   }
 }
 
+void preset2ImgStr(const uint16_t *imagebuf0, const uint16_t *imagebuf1, const char *strbuf, bool reset) {
+  static int count = 0;
+  static int imgcount = 0;
+  if (reset) {
+    count = 0;
+    dispMessage(strbuf, 255, 255, 255, reset);
+  }
+  if (count < NUMCYCLES) {
+    if (imgcount == 0) {
+      dispImage(imagebuf0);
+    } else if (imgcount == 1) {
+      dispImage(imagebuf1);
+    }
+    count++;
+  } else if (dispMessage(strbuf, 255, 255, 255, reset)) {
+    count = 0;
+    imgcount++;
+    imgcount %= 2;
+  }
+}
+
 
 
 
@@ -169,22 +196,30 @@ void presetImgStr(const uint16_t *imagebuf, const char *strbuf, bool reset) {
 // display a preset
 void dispPreset(bool reset) {
   switch(presetNum) {
+    case 6:
+      preset2ImgStr(southafrica, america, sa_0_string, reset);
+      break;
+    case 5:
+      if (dispMessage(count_0_str, 255, 255, 255, reset)) {
+        LED_STATE = WAIT;
+      }
+      break;
     case 4:
-      presetImgAllStr(ecelogo, reset);
+      presetImgStrArr(ecelogo, ece_str, reset);
       break;
     case 3:
-      presetImgAllStr(oldlogowhite, reset);
+      presetImgStrArr(oldlogowhite, preset_str, reset);
       break;
     case 2:
-      presetImgAllStr(america, reset);
+      presetImgStrArr(america, preset_str, reset);
       break;
     case 1:
-      presetImgAllStr(vertlogo, reset);
+      presetImgStrArr(vertlogo, preset_str, reset);
       break;
     case 0:
     default:
 //      presetImgStr(vertlogo, preset_str[1], reset);
-      presetImgAllStr(oldlogo, reset);
+      presetImgStrArr(oldlogo, preset_str, reset);
       break;
   }
 }
@@ -285,8 +320,6 @@ bool cmdAvailable(void) {
   char tmp;
   while (Serial1.available() > 0) {
     tmp = Serial1.read();
-    Serial.print ("cmd: ");
-    Serial.println(tmp);
     if (tmp == 's') {
       return true;
     }
@@ -304,31 +337,24 @@ void readCmd(void) {
   if (Serial1.available())
   {
     incomingByte = Serial1.read();
-    Serial.print(F("Incoming byte: "));
-    Serial.println(incomingByte);
     switch (incomingByte) {
       case 'P':
-        Serial.print(F("Preset\n"));
         presetNum = (uint8_t) Serial1.read();
-        Serial.println(presetNum);
         LED_STATE = PRESET;
         matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
         break;
       case 'T':
-        Serial1.print(F("Text\n"));
         numBytes = Serial1.available();
         if (numBytes > 256) {
           numBytes = 255;
         }
         Serial1.readBytes(str,numBytes);
         textMin = strlen(str) * -15;
-        Serial1.println(str);
+        Serial1.println(numBytes);
         LED_STATE = TEXT_DISPLAY;
         break;
       case 'I':
-        Serial.print(F("Image: "));
         LED_STATE = IMAGE_DISPLAY;
-        Serial.println("");
         break;
       default:
         Serial.print(F("Not an option: "));  
