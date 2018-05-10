@@ -3,5 +3,9 @@
 #define _IMAGES_H_
 
 #include "vertlogo.h"
+#include "oldlogo.h"
+#include "america.h"
+#include "oldlogowhite.h"
+#include "ecelogo.h"
 
 #endif  _IMAGES_H_

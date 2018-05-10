@@ -169,10 +169,22 @@ void presetImgStr(const uint16_t *imagebuf, const char *strbuf, bool reset) {
 // display a preset
 void dispPreset(bool reset) {
   switch(presetNum) {
+    case 4:
+      presetImgAllStr(ecelogo, reset);
+      break;
+    case 3:
+      presetImgAllStr(oldlogowhite, reset);
+      break;
+    case 2:
+      presetImgAllStr(america, reset);
+      break;
+    case 1:
+      presetImgAllStr(vertlogo, reset);
+      break;
     case 0:
     default:
 //      presetImgStr(vertlogo, preset_str[1], reset);
-      presetImgAllStr(vertlogo, reset);
+      presetImgAllStr(oldlogo, reset);
       break;
   }
 }
