@@ -38,7 +38,7 @@ def exportCcode(timg, tdrawable,iconname,filename,colormode):
     if colormode==0:
         gimp.message("12-bit mode not yet implemented")
     elif colormode==1:
-        output += "uint16_t "+iconname+"[" + "%(size)d" % {"size":size} + "]={\n" 
+        output += "const uint16_t PROGMEM "+iconname+"[" + "%(size)d" % {"size":size} + "]={\n" 
         while (j<timg.height-1):
             while (i<timg.width-1):
                 output += packColor(pr[i,j]) + ","
