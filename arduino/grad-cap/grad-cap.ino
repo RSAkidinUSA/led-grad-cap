@@ -9,6 +9,10 @@
 #include "Adafruit_GFX.h"   // Core graphics library
 #include "RGBmatrixPanel.h" // Hardware-specific library
 #include "logo.h"
+#include "ecelogo.h"
+#include "oldlogo.h"
+#include "oldlogowhite.h"
+#include "america.h"
 
 // Similar to F(), but for PROGMEM string pointers rather than literals
 #define F2(progmem_ptr) (const __FlashStringHelper *)progmem_ptr
@@ -123,7 +127,7 @@ void test(void) {
 /* display the image saved in the buffer */
 void dispImage() {
   matrix.fillScreen(0);
-  matrix.drawRGBBitmap(0, 0, logo, matrix.width(), matrix.height());
+  matrix.drawRGBBitmap(0, 0, icon, matrix.width(), matrix.height());
 //  matrix.drawPixel(matrix.width(),matrix.height(),128);
   matrix.swapBuffers(false);
 }
