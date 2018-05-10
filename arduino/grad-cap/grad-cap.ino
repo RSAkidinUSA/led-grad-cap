@@ -16,7 +16,9 @@
 bool cmdAvailable(void);
 void readCmd(void);
 void dispMessage(bool reset);
-void dispImage(uint16_t buf);
+bool dispMessage(const char *buf);
+void dispImage(uint16_t *buf);
+void dispImage(const uint16_t *buf);
 void dispPreset(void);
 
 /* Debug messages to save memory */
@@ -59,6 +61,8 @@ static const uint16_t PROGMEM ballcolor[3] = {
   0x1000  // Red=1
 };
 
+uint16_t imagebuf[1024];
+
 void setup() {
 
 // Open serial communications and wait for port to open:
@@ -80,6 +84,9 @@ void setup() {
   float    dx, dy, d;
   uint8_t  sat, val;
   uint16_t c;
+
+  // copy something into imagebuf so it works
+  memset(imagebuf, 0, 1024);
 
   matrix.begin();
   matrix.setTextWrap(false); // Allow text to run off right edge
@@ -103,7 +110,7 @@ void loop() {
       dispMessage(reset);
       break;
     case IMAGE_DISPLAY:
-      dispImage(logo);
+      dispImage(imagebuf);
       LED_STATE = WAIT;
       break;
     case PRESET:
@@ -112,23 +119,51 @@ void loop() {
     }
 }
 
-void test(void) {
-  for (int i = 0; i < 32; i++) {
-    for (int j = 0; j < 32; j++) {
-      uint16_t val = (i * 32) + j;
-      matrix.drawPixel(i,j, 0xFFFF);    
-    }
+///////////////////////////////// PRESET FUNCTIONS ///////////////////////////////////////////
+
+#define NUMCYCLES 25
+
+/* Debug messages to save memory */
+const char preset_0_str[] PROGMEM = "Lets go Hokies!";
+const char preset_1_str[] PROGMEM = "Start Jumping!";
+
+#define NUMSTRINGS 2
+const char* const preset_str[2] = {preset_0_str, preset_1_str};
+
+void presetImgAllStr(const uint16_t *imagebuf) {
+  static int count = 0, strCount = 0;
+  if (count < NUMCYCLES) {
+    dispImage(imagebuf);
+    count++;
+  } else if (dispMessage(preset_str[strCount], 255, 255, 255)) {
+    strCount++;
+    strCount %= NUMSTRINGS;
+    count = 0;
   }
-  
-  matrix.swapBuffers(false);
 }
+
+void presetImgStr(const uint16_t *imagebuf, const char *strbuf) {
+  static int count = 0;
+  if (count < NUMCYCLES) {
+    dispImage(imagebuf);
+    count++;
+  } else if (dispMessage(strbuf, 255, 255, 255)) {
+    count = 0;
+  }
+}
+
+
+
+
+/////////////////////////////////DISPLAY FUNCTIONS////////////////////////////////////////////
 
 // display a preset
 void dispPreset() {
   switch(presetNum) {
     case 0:
     default:
-      dispImage(logo);
+//      presetImgStr(vertlogo, preset_str[1]);
+      presetImgAllStr(vertlogo);
       break;
   }
 }
@@ -137,13 +172,47 @@ void dispPreset() {
 void dispImage(uint16_t *buf) {
   matrix.fillScreen(0);
   matrix.drawRGBBitmap(0, 0, buf, matrix.width(), matrix.height());
-//  matrix.drawPixel(matrix.width(),matrix.height(),128);
   matrix.swapBuffers(false);
+}
+
+/* display an image from flash */
+void dispImage(const uint16_t *buf) {
+  matrix.fillScreen(0);
+  matrix.drawRGBBitmap(0, 0, buf, matrix.width(), matrix.height());
+  matrix.swapBuffers(false);
+}
+
+/* display a preset message */
+bool dispMessage(const char *buf, int rval, int gval, int bval) {
+  byte i;
+  bool done = false;
+  static int textX = matrix.width();
+  int   textMin = strlen_P(buf) * -15;
+
+  Serial.println(strlen_P(buf));
+  // Clear background
+  matrix.fillScreen(0);
+
+  // Draw big scrolly text on top
+  matrix.setTextColor(matrix.Color888(rval, gval, bval, true));
+  matrix.setCursor(textX, 8);
+  matrix.print(F2(buf));
+
+  // Move text left (w/wrap), increase hue
+  if((--textX) < textMin) {
+    textX = matrix.width();
+    done = true;
+  }
+
+  // Update display
+  matrix.swapBuffers(false);
+  return done;
 }
 
 /* display the message saved in the buffer */
 void dispMessage(bool reset) {
   byte i;
+  bool done = false;
 
   if (reset) {
     textX = matrix.width();
@@ -172,12 +241,16 @@ void dispMessage(bool reset) {
   matrix.print(str);
 
   // Move text left (w/wrap), increase hue
-  if((--textX) < textMin) textX = matrix.width();
+  if((--textX) < textMin) {
+    textX = matrix.width();
+    done = true;
+  }
   hue += 7;
   if(hue >= 1536) hue -= 1536;
 
   // Update display
   matrix.swapBuffers(false);
+  return done;
 }
 
 ////////////////////////// Communication code //////////////////////////////////////
@@ -206,25 +279,18 @@ void readCmd(void) {
   if (Serial1.available())
   {
     incomingByte = Serial1.read();
-    Serial.print("Incoming byte: ");
+    Serial.print(F("Incoming byte: "));
     Serial.println(incomingByte);
     switch (incomingByte) {
       case 'P':
-        Serial.print("Preset\n");
-        presetNum = (uint8_t) Serial.read();
+        Serial.print(F("Preset\n"));
+        presetNum = (uint8_t) Serial1.read();
         Serial.println(presetNum);
-        LED_STATE = WAIT;
+        LED_STATE = PRESET;
         matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 0));
         break;
-      case '2':
-        Serial.print("Option2\n");
-        Serial.readBytes(command, 3);
-        Serial.println(command);
-        LED_STATE = WAIT;
-        matrix.fillRect(0, 0, 32, 32, matrix.Color333(0, 3, 3));
-        break;
       case 'T':
-        Serial1.print("Text\n");
+        Serial1.print(F("Text\n"));
         numBytes = Serial1.available();
         if (numBytes > 256) {
           numBytes = 255;
@@ -235,13 +301,14 @@ void readCmd(void) {
         LED_STATE = TEXT_DISPLAY;
         break;
       case 'I':
-        Serial.print("Image: ");
+        Serial.print(F("Image: "));
         LED_STATE = IMAGE_DISPLAY;
         Serial.println("");
         break;
       default:
-        Serial.print("Not an option: ");  
+        Serial.print(F("Not an option: "));  
         Serial.println(incomingByte);
+        break;
     }  
   }  
 }

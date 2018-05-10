@@ -2,6 +2,6 @@
 #ifndef _IMAGES_H_
 #define _IMAGES_H_
 
-#include "logo.h"
+#include "vertlogo.h"
 
 #endif  _IMAGES_H_
